@@ -97,13 +97,15 @@ class CircuitBreakerTestCase(unittest.TestCase):
     def test_closes_breaker_on_successful_transaction(self):
         self.test_opens_breaker_on_errors()
         self.clock.advance(self.reset_timeout)
-        self.assertEquals(self.breaker.test(), 'half-open')
+        with self.breaker:
+            self.assertEquals(self.breaker.state, 'half-open')
         self.breaker.success()
-        self.assertEquals(self.breaker.test(), 'closed')
+        with self.breaker:
+            self.assertEquals(self.breaker.state, 'closed')
 
     def test_raises_circuit_open_when_open(self):
         self.test_opens_breaker_on_errors()
-        self.assertRaises(breaker.CircuitOpenError, self.breaker.test)
+        self.assertRaises(breaker.CircuitOpenError, self.breaker.__enter__)
 
     def test_context_exit_without_exception_resets_circuit(self):
         self.breaker.state = 'half-open'

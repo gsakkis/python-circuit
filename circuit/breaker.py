@@ -87,19 +87,6 @@ class CircuitBreaker(object):
             self.last_change = now
             self.log.error('got error %r - opening circuit' % (err,))
 
-    def test(self):
-        """Check state of the circuit breaker.
-
-        @raise CircuitOpenError: if the circuit is still open
-        """
-        if self.state == 'open':
-            delta = self.clock() - self.last_change
-            if delta < self.reset_timeout:
-                raise CircuitOpenError()
-            self.state = 'half-open'
-            self.log.debug('half-open - letting one through')
-        return self.state
-
     def success(self):
         if self.state == 'half-open':
             self.state = 'closed'
@@ -114,8 +101,16 @@ class CircuitBreaker(object):
         return wrapped
 
     def __enter__(self):
-        """Context enter."""
-        self.test()
+        """Context enter.
+
+        @raise CircuitOpenError: if the circuit is still open
+        """
+        if self.state == 'open':
+            delta = self.clock() - self.last_change
+            if delta < self.reset_timeout:
+                raise CircuitOpenError()
+            self.state = 'half-open'
+            self.log.debug('half-open - letting one through')
         return self
 
     def __exit__(self, exc_type, exc_val, tb):

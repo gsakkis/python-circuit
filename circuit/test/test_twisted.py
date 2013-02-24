@@ -23,9 +23,7 @@ from circuit import TwistedCircuitBreaker
 class TwistedCircuitBreakerTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.clock = task.Clock()
-        self.log = mock()
-        self.circuit_breaker = TwistedCircuitBreaker(self.clock, self.log)
+        self.circuit_breaker = TwistedCircuitBreaker(clock=task.Clock(), log=mock())
 
     def test_context_exit_with_inline_callbacks_resets_circuit(self):
         @defer.inlineCallbacks

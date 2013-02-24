@@ -36,30 +36,30 @@ class CircuitOpenError(Exception):
 class CircuitBreaker(object):
     """A single circuit with breaker logic."""
 
-    def __init__(self, clock=timeit.default_timer, log=LOGGER, error_types=(),
-                 maxfail=3, reset_timeout=10, time_unit=60, log_tracebacks=False):
+    def __init__(self, maxfail=3, time_unit=60, reset_timeout=10, error_types=(),
+                 log=LOGGER, log_tracebacks=False, clock=timeit.default_timer):
         """Initialize a circuit breaker.
-
-        @param clock: A callable that takes no arguments and return the current
-            time in seconds.
-
-        @param log: A L{logging.Logger} object that is used by the circuit breaker.
-            Alternatively it can be a string specifying a descendant of L{LOGGER}.
-
-        @param error_types: The exception types to be treated as errors by the
-            circuit breaker.
 
         @param maxfail: The maximum number of allowed errors over the last
             C{time_unit}. If the breaker detects more errors than this, the
             circuit will open.
 
+        @param time_unit: Time window (in seconds) for keeping track of errors.
+
         @param reset_timeout: Number of seconds to have the circuit open before
             it moves into C{half-open}.
 
-        @param time_unit: Time window (in seconds) for detecting errors.
+        @param error_types: The exception types to be treated as errors by the
+            circuit breaker.
+
+        @param log: A L{logging.Logger} object that is used by the circuit breaker.
+            Alternatively it can be a string specifying a descendant of L{LOGGER}.
 
         @param log_tracebacks: If true, log the traceback of the exceptions that
             cause the circuit to open.
+
+        @param clock: A callable that takes no arguments and return the current
+            time in seconds.
         """
         self.clock = clock
         if isinstance(log, basestring):

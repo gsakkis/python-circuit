@@ -17,7 +17,7 @@
 from mockito import mock
 import unittest
 
-from circuit import breaker
+from circuit import CircuitBreaker, CircuitOpenError
 
 
 class Clock(object):
@@ -35,12 +35,13 @@ class CircuitBreakerTestCase(unittest.TestCase):
 
     def setUp(self):
         self.clock = Clock()
-        self.log = mock()
-        self.maxfail = 2
         self.reset_timeout = 10
-        self.time_unit = 60
-        self.breaker = breaker.CircuitBreaker(self.clock.time, self.log,
-           [IOError], self.maxfail, self.reset_timeout, self.time_unit)
+        self.breaker = CircuitBreaker(maxfail=2,
+                                      time_unit=60,
+                                      reset_timeout=self.reset_timeout,
+                                      error_types=(IOError,),
+                                      log=mock(),
+                                      clock=self.clock.time)
 
     @property
     def error_count(self):
@@ -105,7 +106,7 @@ class CircuitBreakerTestCase(unittest.TestCase):
 
     def test_raises_circuit_open_when_open(self):
         self.test_opens_breaker_on_errors()
-        self.assertRaises(breaker.CircuitOpenError, self.breaker.__enter__)
+        self.assertRaises(CircuitOpenError, self.breaker.__enter__)
 
     def test_context_exit_without_exception_resets_circuit(self):
         self.breaker.state = 'half-open'

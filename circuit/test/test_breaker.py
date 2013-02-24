@@ -42,12 +42,16 @@ class CircuitBreakerTestCase(unittest.TestCase):
         self.breaker = breaker.CircuitBreaker(self.clock.time, self.log,
            [IOError], self.maxfail, self.reset_timeout, self.time_unit)
 
+    @property
+    def error_count(self):
+        return sum(1 for t in self.breaker.errors if t is not None)
+
     def test_passes_through_unhandled_errors(self):
         try:
             with self.breaker:
                 raise RuntimeError("error")
         except RuntimeError:
-            self.assertEquals(len(self.breaker.errors), 0)
+            self.assertEquals(self.error_count, 0)
         else:
             self.assertTrue(False, "exception not raised")
 
@@ -56,7 +60,7 @@ class CircuitBreakerTestCase(unittest.TestCase):
             with self.breaker:
                 raise IOError("error")
         except IOError:
-            self.assertEquals(len(self.breaker.errors), 1)
+            self.assertEquals(self.error_count, 1)
         else:
             self.assertTrue(False, "exception not raised")
 
@@ -94,4 +98,4 @@ class CircuitBreakerTestCase(unittest.TestCase):
             with self.breaker:
                 raise IOError("error")
         self.assertRaises(IOError, test)
-        self.assertEquals(len(self.breaker.errors), 1)
+        self.assertEquals(self.error_count, 1)

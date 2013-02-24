@@ -38,6 +38,7 @@ to track:
 
 import logging
 import timeit
+from collections import deque
 
 LOGGER = logging.getLogger('python-circuit')
 LOGGER.addHandler(logging.NullHandler())
@@ -59,7 +60,7 @@ class CircuitBreaker(object):
         self.time_unit = time_unit
         self.state = 'closed'
         self.last_change = None
-        self.errors = []
+        self.errors = deque([None] * maxfail)
 
     def reset(self):
         """Reset the breaker after a successful transaction."""
@@ -73,14 +74,14 @@ class CircuitBreaker(object):
 
     def error(self, err=None):
         """Update the circuit breaker with an error event."""
-        self.errors.append(self.clock())
-        if len(self.errors) > self.maxfail:
-            time = self.clock() - self.errors.pop(0)
-            if time < self.time_unit:
-                if time == 0:
-                    time = 0.0001
-                self.log.debug('error rate: %f errors per second' % (
-                        float(self.maxfail) / time))
+        now = self.clock()
+        self.errors.append(now)
+        earliest_error_time = self.errors.popleft()
+        if earliest_error_time is not None:
+            delta = now - earliest_error_time
+            if delta < self.time_unit:
+                self.log.debug('error rate: %f errors per second' %
+                               (float(self.maxfail) / (delta or 0.0001)))
                 self.open(err)
 
     def test(self):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from circuit.breaker import CircuitBreaker, CircuitBreakerSet
+from circuit.breaker import CircuitBreaker
 try:
     from twisted.internet import defer
 except ImportError:
@@ -28,12 +28,3 @@ class TwistedCircuitBreaker(CircuitBreaker):
         if exc_type is defer._DefGen_Return:
             exc_type, exc_val, tb = None, None, None
         return CircuitBreaker.__exit__(self, exc_type, exc_val, tb)
-
-
-class TwistedCircuitBreakerSet(CircuitBreakerSet):
-    """Circuit breaker that supports twisted."""
-
-    def __init__(self, reactor, logger, **kwargs):
-        kwargs.update({'factory': TwistedCircuitBreaker})
-        CircuitBreakerSet.__init__(self, reactor.seconds, logger,
-            **kwargs)

@@ -17,7 +17,7 @@ import unittest
 
 from twisted.internet import task, defer
 
-from circuit import TwistedCircuitBreakerSet
+from circuit import TwistedCircuitBreaker
 
 
 class TwistedCircuitBreakerTestCase(unittest.TestCase):
@@ -25,17 +25,14 @@ class TwistedCircuitBreakerTestCase(unittest.TestCase):
     def setUp(self):
         self.clock = task.Clock()
         self.log = mock()
-        when(self.log).getChild('ctxt').thenReturn(self.log)
-        self.circuit_breaker = TwistedCircuitBreakerSet(self.clock,
-           self.log)
+        self.circuit_breaker = TwistedCircuitBreaker(self.clock, self.log)
 
     def test_context_exit_with_inline_callbacks_resets_circuit(self):
         @defer.inlineCallbacks
         def test():
-            with self.circuit_breaker.context('ctxt') as breaker:
+            with self.circuit_breaker as breaker:
                 breaker.state = 'half-open'
                 yield defer.succeed(None)
                 defer.returnValue(None)
         test()
-        self.assertEquals(self.circuit_breaker.circuits['ctxt'].state,
-                          'closed')
+        self.assertEquals(self.circuit_breaker.state, 'closed')

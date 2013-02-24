@@ -12,28 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for managing errors when interacting with a remote
-service.
+"""Functionality for managing errors when interacting with a remote service.
 
-The circuit breaker monitors the communication and in the case of a
-high error rate may break the circuit and not allow further
-communication for a short period.  After a while the breaker will let
-through a single request to probe to see if the service feels better.
-If not, it will open the circuit again.
-
-A L{CircuitBreakerSet} can handle the state for multiple interactions
-at the same time.  Use the C{context} method to pick which interaction
-to track:
-
-    try:
-        with circuit_breaker.context('x'):
-           # something that generates errors
-        pass
-    except CircuitOpenError:
-        # the circuit was open so we did not even try to communicate
-        # with the remote service.
-        pass
-
+The circuit breaker monitors the communication and in the case of a high error
+rate may break the circuit and not allow further communication for a short
+period.  After a while the breaker will let through a single request to probe
+to see if the service feels better. If not, it will open the circuit again.
 """
 
 import logging
@@ -42,6 +26,7 @@ from collections import deque
 
 LOGGER = logging.getLogger('python-circuit')
 LOGGER.addHandler(logging.NullHandler())
+
 
 class CircuitOpenError(Exception):
     """The circuit breaker is open."""
@@ -128,52 +113,3 @@ class CircuitBreaker(object):
         elif exc_type in self.error_types:
             self.error(exc_val)
         return False
-
-
-class CircuitBreakerSet(object):
-    """Controller for a set of circuit breakers.
-
-    @ivar clock: A callable that takes no arguments and return the
-        current time in seconds.
-
-    @ivar log: A L{logging.Logger} object that is used for the circuit
-        breakers.
-
-    @ivar maxfail: The maximum number of allowed errors over the
-        last minute.  If the breaker detects more errors than this, the
-        circuit will open.
-
-    @ivar reset_timeout: Number of seconds to have the circuit open
-        before it moves into C{half-open}.
-    """
-
-    def __init__(self, clock=timeit.default_timer, log=LOGGER, maxfail=3,
-                 reset_timeout=10, time_unit=60, factory=CircuitBreaker):
-        self.clock = clock
-        self.log = log
-        self.maxfail = maxfail
-        self.reset_timeout = reset_timeout
-        self.time_unit = time_unit
-        self.circuits = {}
-        self.error_types = []
-        self.factory = factory
-
-    def handle_error(self, err_type):
-        """Register error C{err_type} with the circuit breakers so
-        that it will be handled as an error.
-        """
-        self.error_types.append(err_type)
-
-    def handle_errors(self, err_types):
-        """Register errors C{err_types} with the circuit breakers so
-        that it will be handled as an error.
-        """
-        self.error_types.extend(err_types)
-
-    def context(self, id):
-        """Return a circuit breaker for the given ID."""
-        if id not in self.circuits:
-            self.circuits[id] = self.factory(self.clock, self.log.getChild(id),
-                self.error_types, self.maxfail, self.reset_timeout,
-                self.time_unit)
-        return self.circuits[id]

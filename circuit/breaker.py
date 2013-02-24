@@ -62,16 +62,6 @@ class CircuitBreaker(object):
         self.last_change = None
         self.errors = deque([None] * maxfail)
 
-    def reset(self):
-        """Reset the breaker after a successful transaction."""
-        self.log.info('closing circuit')
-        self.state = 'closed'
-
-    def open(self, err=None):
-        self.log.error('got error %r - opening circuit' % (err,))
-        self.state = 'open'
-        self.last_change = self.clock()
-
     def error(self, err=None):
         """Update the circuit breaker with an error event."""
         now = self.clock()
@@ -80,9 +70,11 @@ class CircuitBreaker(object):
         if earliest_error_time is not None:
             delta = now - earliest_error_time
             if delta < self.time_unit:
+                self.state = 'open'
+                self.last_change = now
+                self.log.error('got error %r - opening circuit' % (err,))
                 self.log.debug('error rate: %f errors per second' %
                                (float(self.maxfail) / (delta or 0.0001)))
-                self.open(err)
 
     def test(self):
         """Check state of the circuit breaker.
@@ -99,7 +91,8 @@ class CircuitBreaker(object):
 
     def success(self):
         if self.state == 'half-open':
-            self.reset()
+            self.state = 'closed'
+            self.log.info('closed circuit')
 
     def __enter__(self):
         """Context enter."""

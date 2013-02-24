@@ -96,9 +96,9 @@ class CircuitBreaker(object):
 
     def __exit__(self, exc_type, exc_val, tb):
         """Context exit."""
-        if exc_type is None:
+        if exc_type is None or not isinstance(exc_val, self.error_types):
             self._success()
-        elif isinstance(exc_val, self.error_types):
+        else:
             self._error(self.log_tracebacks and (exc_type, exc_val, tb) or None)
         return False
 

@@ -110,6 +110,6 @@ class CircuitBreaker(object):
         """Context exit."""
         if exc_type is None:
             self.success()
-        elif exc_type in self.error_types:
+        elif isinstance(exc_val, self.error_types):
             self.error(exc_val)
         return False

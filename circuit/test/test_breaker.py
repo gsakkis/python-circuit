@@ -99,3 +99,12 @@ class CircuitBreakerTestCase(unittest.TestCase):
                 raise IOError("error")
         self.assertRaises(IOError, test)
         self.assertEquals(self.error_count, 1)
+
+    def test_context_exit_with_exception_subclass(self):
+        class SubIOError(IOError):
+            pass
+        def test():
+            with self.breaker:
+                raise SubIOError("error")
+        self.assertRaises(SubIOError, test)
+        self.assertEquals(self.error_count, 1)

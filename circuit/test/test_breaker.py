@@ -93,6 +93,14 @@ class CircuitBreakerTestCase(unittest.TestCase):
             pass
         self.assertEquals(self.breaker.state, 'closed')
 
+    def test_context_exit_with_exception_opens_circuit(self):
+        def test():
+            with self.breaker:
+                raise IOError("error")
+        self.breaker.state = 'half-open'
+        self.assertRaises(IOError, test)
+        self.assertEquals(self.breaker.state, 'open')
+
     def test_context_exit_with_exception_marks_error(self):
         def test():
             with self.breaker:

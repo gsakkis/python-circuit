@@ -74,14 +74,17 @@ class CircuitBreaker(object):
         now = self.clock()
         self.errors.append(now)
         earliest_error_time = self.errors.popleft()
-        if earliest_error_time is not None:
-            delta = now - earliest_error_time
-            if delta < self.time_unit:
-                self.state = 'open'
-                self.last_change = now
-                self.log.error('got error %r - opening circuit' % (err,))
-                self.log.debug('error rate: %f errors per second' %
-                               (float(self.maxfail) / (delta or 0.0001)))
+
+        if self.state == 'closed':
+            set_open = (earliest_error_time is not None and
+                        now - earliest_error_time < self.time_unit)
+        else:
+            set_open = True
+
+        if set_open:
+            self.state = 'open'
+            self.last_change = now
+            self.log.error('got error %r - opening circuit' % (err,))
 
     def test(self):
         """Check state of the circuit breaker.

@@ -36,7 +36,7 @@ class CircuitBreakerTestCase(unittest.TestCase):
     def setUp(self):
         self.clock = Clock()
         self.reset_timeout = 10
-        self.breaker = CircuitBreaker(maxfail=2,
+        self.breaker = CircuitBreaker(max_fail=2,
                                       time_unit=60,
                                       reset_timeout=self.reset_timeout,
                                       error_types=(IOError,),

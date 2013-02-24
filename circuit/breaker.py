@@ -36,11 +36,11 @@ class CircuitOpenError(Exception):
 class CircuitBreaker(object):
     """A single circuit with breaker logic."""
 
-    def __init__(self, maxfail=3, time_unit=60, reset_timeout=10, error_types=(),
+    def __init__(self, max_fail, time_unit=60, reset_timeout=10, error_types=(),
                  log=LOGGER, log_tracebacks=False, clock=timeit.default_timer):
         """Initialize a circuit breaker.
 
-        @param maxfail: The maximum number of allowed errors over the last
+        @param max_fail: The maximum number of allowed errors over the last
             C{time_unit}. If the breaker detects more errors than this, the
             circuit will open.
 
@@ -61,18 +61,18 @@ class CircuitBreaker(object):
         @param clock: A callable that takes no arguments and return the current
             time in seconds.
         """
-        self.clock = clock
+        self.max_fail = max_fail
+        self.time_unit = time_unit
+        self.reset_timeout = reset_timeout
+        self.error_types = tuple(error_types)
         if isinstance(log, basestring):
             log = LOGGER.getChild(log)
         self.log = log
         self.log_tracebacks = log_tracebacks
-        self.error_types = tuple(error_types)
-        self.maxfail = maxfail
-        self.reset_timeout = reset_timeout
-        self.time_unit = time_unit
+        self.clock = clock
         self.state = 'closed'
         self.last_change = None
-        self.errors = collections.deque([None] * maxfail)
+        self.errors = collections.deque([None] * max_fail)
 
     def __call__(self, func):
         """Decorate a function to be called in this circuit breaker's context."""

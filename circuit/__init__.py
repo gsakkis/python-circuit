@@ -13,4 +13,5 @@
 # limitations under the License.
 
 from .breaker import CircuitBreaker, CircuitOpenError
+from ._threadsafe import ThreadSafeCircuitBreaker
 from ._twisted import TwistedCircuitBreaker

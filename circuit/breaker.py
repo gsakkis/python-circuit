@@ -70,28 +70,6 @@ class CircuitBreaker(object):
         self.last_change = None
         self.errors = collections.deque([None] * maxfail)
 
-    def error(self, err=None):
-        """Update the circuit breaker with an error event."""
-        now = self.clock()
-        self.errors.append(now)
-        earliest_error_time = self.errors.popleft()
-
-        if self.state == 'closed':
-            set_open = (earliest_error_time is not None and
-                        now - earliest_error_time < self.time_unit)
-        else:
-            set_open = True
-
-        if set_open:
-            self.state = 'open'
-            self.last_change = now
-            self.log.error('got error %r - opening circuit' % (err,))
-
-    def success(self):
-        if self.state == 'half-open':
-            self.state = 'closed'
-            self.log.info('closed circuit')
-
     def __call__(self, func):
         """Decorate a function to be called in this circuit breaker's context."""
         @functools.wraps(func)
@@ -115,7 +93,29 @@ class CircuitBreaker(object):
     def __exit__(self, exc_type, exc_val, tb):
         """Context exit."""
         if exc_type is None:
-            self.success()
+            self._success()
         elif isinstance(exc_val, self.error_types):
-            self.error(exc_val)
+            self._error(exc_val)
         return False
+
+    def _error(self, err=None):
+        """Update the circuit breaker with an error event."""
+        now = self.clock()
+        self.errors.append(now)
+        earliest_error_time = self.errors.popleft()
+
+        if self.state == 'closed':
+            set_open = (earliest_error_time is not None and
+                        now - earliest_error_time < self.time_unit)
+        else:
+            set_open = True
+
+        if set_open:
+            self.state = 'open'
+            self.last_change = now
+            self.log.error('got error %r - opening circuit' % (err,))
+
+    def _success(self):
+        if self.state == 'half-open':
+            self.state = 'closed'
+            self.log.info('closed circuit')

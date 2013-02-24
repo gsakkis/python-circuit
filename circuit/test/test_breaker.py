@@ -83,14 +83,14 @@ class CircuitBreakerTestCase(unittest.TestCase):
         self.assertEquals(self.error_count, 2)
 
     def test_opens_breaker_on_errors(self):
-        self.breaker.error()
-        self.breaker.error()
-        self.breaker.error()
+        self.breaker._error()
+        self.breaker._error()
+        self.breaker._error()
         self.assertEquals(self.breaker.state, 'open')
 
     def test_allows_unfrequent_errors(self):
         for i in range(10):
-            self.breaker.error()
+            self.breaker._error()
             self.clock.advance(30)
         self.assertEquals(self.breaker.state, 'closed')
 
@@ -99,7 +99,7 @@ class CircuitBreakerTestCase(unittest.TestCase):
         self.clock.advance(self.reset_timeout)
         with self.breaker:
             self.assertEquals(self.breaker.state, 'half-open')
-        self.breaker.success()
+        self.breaker._success()
         with self.breaker:
             self.assertEquals(self.breaker.state, 'closed')
 

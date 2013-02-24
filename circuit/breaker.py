@@ -58,6 +58,7 @@ class CircuitBreaker(object):
             time in seconds.
 
         @param log: A L{logging.Logger} object that is used by the circuit breaker.
+            Alternatively it can be a string specifying a descendant of L{LOGGER}.
 
         @param error_types: The exception types to be treated as errors by the
             circuit breaker.
@@ -72,6 +73,8 @@ class CircuitBreaker(object):
         @param time_unit: Time window (in seconds) for detecting errors.
         """
         self.clock = clock
+        if isinstance(log, basestring):
+            log = LOGGER.getChild(log)
         self.log = log
         self.error_types = tuple(error_types)
         self.maxfail = maxfail

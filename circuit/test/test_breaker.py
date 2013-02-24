@@ -55,6 +55,14 @@ class CircuitBreakerTestCase(unittest.TestCase):
         else:
             self.assertTrue(False, "exception not raised")
 
+    def test_passes_through_unhandled_errors_decorator(self):
+        @self.breaker
+        def test():
+            raise RuntimeError("error")
+
+        self.assertRaises(RuntimeError, test)
+        self.assertEquals(self.error_count, 0)
+
     def test_catches_handled_errors(self):
         try:
             with self.breaker:
@@ -63,6 +71,16 @@ class CircuitBreakerTestCase(unittest.TestCase):
             self.assertEquals(self.error_count, 1)
         else:
             self.assertTrue(False, "exception not raised")
+
+    def test_catches_handled_errors_decorator(self):
+        @self.breaker
+        def test():
+            raise IOError("error")
+
+        self.assertRaises(IOError, test)
+        self.assertEquals(self.error_count, 1)
+        self.assertRaises(IOError, test)
+        self.assertEquals(self.error_count, 2)
 
     def test_opens_breaker_on_errors(self):
         self.breaker.error()

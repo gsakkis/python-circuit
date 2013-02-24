@@ -20,9 +20,10 @@ period.  After a while the breaker will let through a single request to probe
 to see if the service feels better. If not, it will open the circuit again.
 """
 
+import collections
+import functools
 import logging
 import timeit
-from collections import deque
 
 LOGGER = logging.getLogger('python-circuit')
 LOGGER.addHandler(logging.NullHandler())
@@ -67,7 +68,7 @@ class CircuitBreaker(object):
         self.time_unit = time_unit
         self.state = 'closed'
         self.last_change = None
-        self.errors = deque([None] * maxfail)
+        self.errors = collections.deque([None] * maxfail)
 
     def error(self, err=None):
         """Update the circuit breaker with an error event."""
@@ -103,6 +104,14 @@ class CircuitBreaker(object):
         if self.state == 'half-open':
             self.state = 'closed'
             self.log.info('closed circuit')
+
+    def __call__(self, func):
+        """Decorate a function to be called in this circuit breaker's context."""
+        @functools.wraps(func)
+        def wrapped(*args, **kwds):
+            with self:
+                return func(*args, **kwds)
+        return wrapped
 
     def __enter__(self):
         """Context enter."""

@@ -30,8 +30,8 @@ class TwistedCircuitBreakerTestCase(unittest.TestCase):
     def test_context_exit_with_inline_callbacks_resets_circuit(self):
         @defer.inlineCallbacks
         def test():
-            with self.circuit_breaker as breaker:
-                breaker.state = 'half-open'
+            with self.circuit_breaker:
+                self.circuit_breaker.state = 'half-open'
                 yield defer.succeed(None)
                 defer.returnValue(None)
         test()

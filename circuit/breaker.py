@@ -111,7 +111,6 @@ class CircuitBreaker(object):
                 raise CircuitOpenError()
             self.state = 'half-open'
             self.log.debug('half-open - letting one through')
-        return self
 
     def __exit__(self, exc_type, exc_val, tb):
         """Context exit."""

@@ -50,11 +50,30 @@ class CircuitOpenError(Exception):
 class CircuitBreaker(object):
     """A single circuit with breaker logic."""
 
-    def __init__(self, clock, log, error_types, maxfail, reset_timeout,
-                 time_unit):
+    def __init__(self, clock=timeit.default_timer, log=LOGGER, error_types=(),
+                 maxfail=3, reset_timeout=10, time_unit=60):
+        """Initialize a circuit breaker.
+
+        @param clock: A callable that takes no arguments and return the current
+            time in seconds.
+
+        @param log: A L{logging.Logger} object that is used by the circuit breaker.
+
+        @param error_types: The exception types to be treated as errors by the
+            circuit breaker.
+
+        @param maxfail: The maximum number of allowed errors over the last
+            C{time_unit}. If the breaker detects more errors than this, the
+            circuit will open.
+
+        @param reset_timeout: Number of seconds to have the circuit open before
+            it moves into C{half-open}.
+
+        @param time_unit: Time window (in seconds) for detecting errors.
+        """
         self.clock = clock
         self.log = log
-        self.error_types = error_types
+        self.error_types = tuple(error_types)
         self.maxfail = maxfail
         self.reset_timeout = reset_timeout
         self.time_unit = time_unit

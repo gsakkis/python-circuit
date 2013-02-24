@@ -37,6 +37,7 @@ to track:
 """
 
 import logging
+import timeit
 
 LOGGER = logging.getLogger('python-circuit')
 LOGGER.addHandler(logging.NullHandler())
@@ -130,8 +131,8 @@ class CircuitBreakerSet(object):
         before it moves into C{half-open}.
     """
 
-    def __init__(self, clock, log=LOGGER, maxfail=3, reset_timeout=10,
-                 time_unit=60, factory=CircuitBreaker):
+    def __init__(self, clock=timeit.default_timer, log=LOGGER, maxfail=3,
+                 reset_timeout=10, time_unit=60, factory=CircuitBreaker):
         self.clock = clock
         self.log = log
         self.maxfail = maxfail

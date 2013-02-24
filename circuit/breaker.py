@@ -37,7 +37,7 @@ class CircuitBreaker(object):
     """A single circuit with breaker logic."""
 
     def __init__(self, clock=timeit.default_timer, log=LOGGER, error_types=(),
-                 maxfail=3, reset_timeout=10, time_unit=60):
+                 maxfail=3, reset_timeout=10, time_unit=60, log_tracebacks=False):
         """Initialize a circuit breaker.
 
         @param clock: A callable that takes no arguments and return the current
@@ -57,11 +57,15 @@ class CircuitBreaker(object):
             it moves into C{half-open}.
 
         @param time_unit: Time window (in seconds) for detecting errors.
+
+        @param log_tracebacks: If true, log the traceback of the exceptions that
+            cause the circuit to open.
         """
         self.clock = clock
         if isinstance(log, basestring):
             log = LOGGER.getChild(log)
         self.log = log
+        self.log_tracebacks = log_tracebacks
         self.error_types = tuple(error_types)
         self.maxfail = maxfail
         self.reset_timeout = reset_timeout
@@ -95,10 +99,10 @@ class CircuitBreaker(object):
         if exc_type is None:
             self._success()
         elif isinstance(exc_val, self.error_types):
-            self._error(exc_val)
+            self._error(self.log_tracebacks and (exc_type, exc_val, tb) or None)
         return False
 
-    def _error(self, err=None):
+    def _error(self, exc_info=None):
         """Update the circuit breaker with an error event."""
         now = self.clock()
         self.errors.append(now)
@@ -113,7 +117,8 @@ class CircuitBreaker(object):
         if set_open:
             self.state = 'open'
             self.last_change = now
-            self.log.error('got error %r - opening circuit' % (err,))
+            self.log.log(exc_info and logging.ERROR or logging.INFO,
+                         'opened circuit', exc_info=exc_info)
 
     def _success(self):
         if self.state == 'half-open':

@@ -19,7 +19,7 @@ rate may break the circuit and not allow further communication for a short
 period.  After a while the breaker will let through a single request to probe
 to see if the service feels better. If not, it will open the circuit again.
 """
-
+from __future__ import division
 import collections
 import functools
 import logging
@@ -36,15 +36,25 @@ class CircuitOpenError(Exception):
 class CircuitBreaker(object):
     """A single circuit with breaker logic."""
 
-    def __init__(self, max_fail, time_unit=60, reset_timeout=10, error_types=(),
+    def __init__(self, max_fail, time_unit=None, max_error_rate=None,
+                 reset_timeout=10, error_types=(),
                  log=LOGGER, log_tracebacks=False, clock=timeit.default_timer):
         """Initialize a circuit breaker.
 
-        @param max_fail: The maximum number of allowed errors over the last
-            C{time_unit}. If the breaker detects more errors than this, the
-            circuit will open.
+        @param max_fail: The number of latest errors to keep track of. This is
+            used to determine when the circuit opens as follows:
+            1. If C{time_unit} is given, the circuit opens when the breaker
+               detects more than C{max_fail} errors over the last C{time_unit}.
+            2. If C{max_error_rate} is given, the circuit opens when the error
+               rate (C{max_fail} divided by the total calls during the same
+               period) is greater or equal than C{max_error_rate}.
+            3. If both C{time_unit} and C{max_error_rate} are given, the circuit
+               opens when both conditions of (1) and (2) are true.
 
         @param time_unit: Time window (in seconds) for keeping track of errors.
+
+        @param max_error_rate: Maximum allowed running error rate for the
+            circuit to remain closed.
 
         @param reset_timeout: Number of seconds to have the circuit open before
             it moves into C{half-open}.
@@ -61,10 +71,16 @@ class CircuitBreaker(object):
         @param clock: A callable that takes no arguments and return the current
             time in seconds.
         """
+        if time_unit is max_error_rate is None:
+            raise ValueError("At least one of {time_unit, max_error_rate} must be specified")
+        if max_error_rate is not None and not (0 < max_error_rate <= 1):
+            raise ValueError('max_error_rate must be between 0 and 1')
         if isinstance(log, basestring):
             log = LOGGER.getChild(log)
+
         self._max_fail = max_fail
         self._time_unit = time_unit
+        self._max_error_rate = max_error_rate
         self._reset_timeout = reset_timeout
         self._error_types = tuple(error_types)
         self._log = log
@@ -73,6 +89,7 @@ class CircuitBreaker(object):
 
         self._last_change = None
         self._error_times = collections.deque([None] * max_fail)
+        self._num_calls = collections.deque([0] * max_fail)
         self._state = 'closed'
 
     def __call__(self, func):
@@ -93,10 +110,11 @@ class CircuitBreaker(object):
             if delta < self._reset_timeout:
                 raise CircuitOpenError()
             self._state = 'half-open'
-            self._log.debug('open -> half-open (timedelta=%s)', delta)
+            self._log.debug('open => half-open (delta=%.2f sec)', delta)
 
     def __exit__(self, exc_type, exc_val, tb):
         """Context exit."""
+        self._num_calls[-1] += 1
         if exc_type is None or not isinstance(exc_val, self._error_types):
             self._success()
         else:
@@ -109,17 +127,34 @@ class CircuitBreaker(object):
         self._error_times.append(now)
         earliest_error_time = self._error_times.popleft()
 
+        total_calls = sum(self._num_calls)
+        self._num_calls.append(0)
+        self._num_calls.popleft()
+
+        set_open = True
         if self._state == 'closed':
-            set_open = (earliest_error_time is not None and
-                        now - earliest_error_time < self._time_unit)
-        else:
-            set_open = True
+            if earliest_error_time is None:
+                set_open = False
+            else:
+                delta = now - earliest_error_time
+                error_rate = self._max_fail / total_calls
+                assert error_rate <= 1.0
+
+                if set_open and self._time_unit is not None:
+                    set_open = delta < self._time_unit
+                if set_open and self._max_error_rate is not None:
+                    set_open = error_rate >= self._max_error_rate
 
         if set_open:
+            if self._state == 'closed':
+                self._log.debug('closed => open (delta=%.2f sec, error_rate=%.2f%%)',
+                                delta, 100.0 * error_rate, exc_info=exc_info)
+            else:
+                self._log.debug('%s => open', self._state, exc_info=exc_info)
             self._state = 'open'
             self._last_change = now
 
     def _success(self):
         if self._state == 'half-open':
             self._state = 'closed'
-            self._log.debug('half-open -> closed')
+            self._log.debug('half-open => closed')

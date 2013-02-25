@@ -61,18 +61,19 @@ class CircuitBreaker(object):
         @param clock: A callable that takes no arguments and return the current
             time in seconds.
         """
-        self.max_fail = max_fail
-        self.time_unit = time_unit
-        self.reset_timeout = reset_timeout
-        self.error_types = tuple(error_types)
         if isinstance(log, basestring):
             log = LOGGER.getChild(log)
-        self.log = log
-        self.log_tracebacks = log_tracebacks
-        self.clock = clock
-        self.state = 'closed'
-        self.last_change = None
-        self.errors = collections.deque([None] * max_fail)
+        self._max_fail = max_fail
+        self._time_unit = time_unit
+        self._reset_timeout = reset_timeout
+        self._error_types = tuple(error_types)
+        self._log = log
+        self._log_tracebacks = log_tracebacks
+        self._clock = clock
+
+        self._last_change = None
+        self._error_times = collections.deque([None] * max_fail)
+        self._state = 'closed'
 
     def __call__(self, func):
         """Decorate a function to be called in this circuit breaker's context."""
@@ -87,40 +88,38 @@ class CircuitBreaker(object):
 
         @raise CircuitOpenError: if the circuit is still open
         """
-        if self.state == 'open':
-            delta = self.clock() - self.last_change
-            if delta < self.reset_timeout:
+        if self._state == 'open':
+            delta = self._clock() - self._last_change
+            if delta < self._reset_timeout:
                 raise CircuitOpenError()
-            self.state = 'half-open'
-            self.log.debug('half-open - letting one through')
+            self._state = 'half-open'
+            self._log.debug('open -> half-open (timedelta=%s)', delta)
 
     def __exit__(self, exc_type, exc_val, tb):
         """Context exit."""
-        if exc_type is None or not isinstance(exc_val, self.error_types):
+        if exc_type is None or not isinstance(exc_val, self._error_types):
             self._success()
         else:
-            self._error(self.log_tracebacks and (exc_type, exc_val, tb) or None)
+            self._error(self._log_tracebacks and (exc_type, exc_val, tb) or None)
         return False
 
     def _error(self, exc_info=None):
         """Update the circuit breaker with an error event."""
-        now = self.clock()
-        self.errors.append(now)
-        earliest_error_time = self.errors.popleft()
+        now = self._clock()
+        self._error_times.append(now)
+        earliest_error_time = self._error_times.popleft()
 
-        if self.state == 'closed':
+        if self._state == 'closed':
             set_open = (earliest_error_time is not None and
-                        now - earliest_error_time < self.time_unit)
+                        now - earliest_error_time < self._time_unit)
         else:
             set_open = True
 
         if set_open:
-            self.state = 'open'
-            self.last_change = now
-            self.log.log(exc_info and logging.ERROR or logging.INFO,
-                         'opened circuit', exc_info=exc_info)
+            self._state = 'open'
+            self._last_change = now
 
     def _success(self):
-        if self.state == 'half-open':
-            self.state = 'closed'
-            self.log.info('closed circuit')
+        if self._state == 'half-open':
+            self._state = 'closed'
+            self._log.debug('half-open -> closed')

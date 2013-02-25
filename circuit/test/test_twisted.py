@@ -30,8 +30,8 @@ class TwistedCircuitBreakerTestCase(unittest.TestCase):
         @defer.inlineCallbacks
         def test():
             with self.circuit_breaker:
-                self.circuit_breaker.state = 'half-open'
+                self.circuit_breaker._state = 'half-open'
                 yield defer.succeed(None)
                 defer.returnValue(None)
         test()
-        self.assertEquals(self.circuit_breaker.state, 'closed')
+        self.assertEquals(self.circuit_breaker._state, 'closed')

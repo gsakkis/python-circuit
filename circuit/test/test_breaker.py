@@ -45,7 +45,7 @@ class CircuitBreakerTestCase(unittest.TestCase):
 
     @property
     def error_count(self):
-        return sum(1 for t in self.breaker.errors if t is not None)
+        return sum(1 for t in self.breaker._error_times if t is not None)
 
     def test_passes_through_unhandled_errors(self):
         try:
@@ -87,40 +87,40 @@ class CircuitBreakerTestCase(unittest.TestCase):
         self.breaker._error()
         self.breaker._error()
         self.breaker._error()
-        self.assertEquals(self.breaker.state, 'open')
+        self.assertEquals(self.breaker._state, 'open')
 
     def test_allows_unfrequent_errors(self):
         for i in range(10):
             self.breaker._error()
             self.clock.advance(30)
-        self.assertEquals(self.breaker.state, 'closed')
+        self.assertEquals(self.breaker._state, 'closed')
 
     def test_closes_breaker_on_successful_transaction(self):
         self.test_opens_breaker_on_errors()
         self.clock.advance(self.reset_timeout)
         with self.breaker:
-            self.assertEquals(self.breaker.state, 'half-open')
+            self.assertEquals(self.breaker._state, 'half-open')
         self.breaker._success()
         with self.breaker:
-            self.assertEquals(self.breaker.state, 'closed')
+            self.assertEquals(self.breaker._state, 'closed')
 
     def test_raises_circuit_open_when_open(self):
         self.test_opens_breaker_on_errors()
         self.assertRaises(CircuitOpenError, self.breaker.__enter__)
 
     def test_context_exit_without_exception_resets_circuit(self):
-        self.breaker.state = 'half-open'
+        self.breaker._state = 'half-open'
         with self.breaker:
             pass
-        self.assertEquals(self.breaker.state, 'closed')
+        self.assertEquals(self.breaker._state, 'closed')
 
     def test_context_exit_with_exception_opens_circuit(self):
         def test():
             with self.breaker:
                 raise IOError("error")
-        self.breaker.state = 'half-open'
+        self.breaker._state = 'half-open'
         self.assertRaises(IOError, test)
-        self.assertEquals(self.breaker.state, 'open')
+        self.assertEquals(self.breaker._state, 'open')
 
     def test_context_exit_with_exception_marks_error(self):
         def test():

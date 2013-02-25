@@ -9,13 +9,13 @@ class ThreadSafeCircuitBreaker(CircuitBreaker):
         self._state_lock = threading.Lock()
 
     def __enter__(self):
-        if self.state != 'open':
+        if self._state != 'open':
             return
         with self._state_lock:
             super(ThreadSafeCircuitBreaker, self).__enter__()
 
     def _success(self):
-        if self.state != 'half-open':
+        if self._state != 'half-open':
             return
         with self._state_lock:
             super(ThreadSafeCircuitBreaker, self)._success()
